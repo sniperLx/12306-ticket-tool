@@ -123,7 +123,7 @@ let initDcTicketInfoForPassenger = async () => {
     taskRelatedInfoCache["ticketOrderInfo"]["repeatSubmitToken"] = token;
     taskRelatedInfoCache["ticketOrderInfo"]["isOk"] = true;
 
-    console.log("[initDcTicketInfoForPassenger],  taskRelatedInfoCache: ", taskRelatedInfoCache)
+    console.log("[initDcTicketInfoForPassenger],  taskRelatedInfoCache: ", JSON.stringify(taskRelatedInfoCache))
 }
 
 /**
@@ -244,16 +244,16 @@ let submitOrderRequest = async (secretStr, trainDate, backTrainDate, fromStation
  * 查询所有已添加的乘客信息，用于选择乘车乘客
  * @param repeatSubmitToken e5c94ff235354551d16ecee352f924ad, 通过getRepeatSubmitToken()获取
  * @returns {Promise<[]>}
- * [{"passenger_name":"刘旭","sex_code":"M","sex_name":"男",
- * "born_date":"1991-06-23 00:00:00","country_code":"CN",
+ * [{"passenger_name":"xx","sex_code":"M","sex_name":"男",
+ * "born_date":"1999-09-23 00:00:00","country_code":"CN",
  * "passenger_id_type_code":"1","passenger_id_type_name":"中国居民身份证",
- * "passenger_id_no":"5113***********213","passenger_type":"3",
+ * "passenger_id_no":"5124***********213","passenger_type":"3",
  * "passenger_flag":"0","passenger_type_name":"学生",
- * "mobile_no":"182****7089","phone_no":"","email":"lx1848@126.com","address":"",
+ * "mobile_no":"182****7129","phone_no":"","email":"xx@126.com","address":"",
  * "postalcode":"","first_letter":"","recordCount":"10","total_times":"99","index_id":"0",
- * "allEncStr":"4b794e3fad154744f8c12d92aa9c054c774a8bbd5c04be915bb7f3c446ae625bab84b2777946beb7180143bc7bec5d0362a14dacd096c8023c9be802e391ba6c40e32866c0455252b269ec0af721c63b",
+ * "allEncStr":"4b794e3fad154744f8c12d92aa9c054c774a8bbd5c04be915bb7f3c446ae625bab...af721c63b",
  * "isAdult":"Y", "isYongThan10":"N","isYongThan14":"N","isOldThan60":"N","if_receive":"Y","is_active":"Y",
- * "is_buy_ticket":"N","last_time":"20170120","mobile_check_time":"",
+ * "is_buy_ticket":"N","last_time":"20190120","mobile_check_time":"",
  * "email_active_time":"","last_update_time":"","passenger_uuid":"7d7714874093d59659893535a05c5bf701ca6c04da274f92166578f888dbb2f8","gat_born_date":"",
  * "gat_valid_date_start":"","gat_valid_date_end":"","gat_version":""},...]
  */
@@ -361,8 +361,8 @@ let getQueueCount = async (repeatSubmitToken, trainDate, trainNo, trainCode, sea
 /**
  *
  * @param repeatSubmitToken e5c94ff235354551d16ecee352f924ad
- * @param passengerTicketStr 1,0,1,刘旭,1,5113***********213,182****7089,N,4b794e3fad154744f8c12d92aa9c054c774a8bbd5c04be915bb7f3c446ae625bab84b2777946beb7180143bc7bec5d0362a14dacd096c8023c9be802e391ba6c40e32866c0455252b269ec0af721c63b
- * @param oldPassengerStr  刘旭,1,5113***********213,3_
+ * @param passengerTicketStr 1,0,1,xx,1,5124***********213,182****7119,N,4b794e3fad154744f8c12d92aa....af721c63b
+ * @param oldPassengerStr  xx,1,5124***********213,3_
  * @param tourFlag dc
  * @param whatsSelect 1
  * @returns {Promise<boolean>} true 表示成功
@@ -402,6 +402,10 @@ let checkOrderInfo = async (repeatSubmitToken, passengerTicketStr, oldPassengerS
     });
 
     if (ret["status"] === true) {
+        if (ret["data"]["submitStatus"] === false) {
+            console.log("[checkOrderInfo] failed: " + JSON.stringify(ret["data"]["errMsg"]));
+            return false;
+        }
         return true;
     } else {
         console.log("[checkOrderInfo] failed: " + JSON.stringify(ret["messages"]));
@@ -411,8 +415,8 @@ let checkOrderInfo = async (repeatSubmitToken, passengerTicketStr, oldPassengerS
 
 /**
  * 确认订单
- * @param passengerTicketStr 1,0,1,刘旭,1,5113***********213,182****7089,N,4b794e3fad154744f8c12d92aa9c054c774a8bbd5c04be915bb7f3c446ae625bab84b2777946beb7180143bc7bec5d0362a14dacd096c8023c9be802e391ba6c40e32866c0455252b269ec0af721c63b
- * @param oldPassengerStr 刘旭,1,5113***********213,3_
+ * @param passengerTicketStr 1,0,1,xx,1,5124***********213,182****7119,N,4b794e3fad154744f8c12d92aa....af721c63b
+ * @param oldPassengerStr xx,1,5124***********213,3_
  * @param purposeCodes 00
  * @param keyCheckIsChange E9CBAC428A2620FB072516147CEAB63AC392059B0B1FE022FC50B74F
  * @param leftTicketStr bP2rrfeOWXeRkF%2Fh%2FjQr2ouIfDueVsIbjwrIXdDXDnpdKVziqYwp20JyFQ0%3D
@@ -430,8 +434,8 @@ let confirmSingleForQueue = async (repeatSubmitToken, passengerTicketStr, oldPas
                                    encryptedData = "", whatsSelect = "1", roomType = "00") => {
     /*
     {
-       'passengerTicketStr': '1,0,1,王建会,1,5129***********921,134****0679,N,ac1b75b87900b....069be9bbcc58',
-       'oldPassengerStr': '王建会,1,5129***********921,1_',
+       'passengerTicketStr': '1,0,1,xxx,1,5119***********921,134****0779,N,ac1b75b87900b....069be9bbcc58',
+       'oldPassengerStr': 'xxx,1,5119***********921,1_',
        'purpose_codes': '00',
        'key_check_isChange': 'D6373EF64F619F2AF445E2032619D92470    7D26DA40DDCBD8A14F7170',
        'leftTicketStr': 'mEB3lPcDpye7AY38Uls%2FmVdRkL0kN2ChIMIAFv3RkVGhzg4j4RI%2BsHbtrg8%3D',
@@ -511,7 +515,7 @@ let confirmSingleForQueue = async (repeatSubmitToken, passengerTicketStr, oldPas
 	"validateMessages": {}
 }
  */
-let queryOrderWaitTime = async (repeatSubmitToken, retryCnt = 10, retryInterval = 3000, tourFlag = "dc") => {
+let queryOrderWaitTime = async (repeatSubmitToken, retryCnt = 5, retryInterval = 1000, tourFlag = "dc") => {
     if (retryCnt <= 0) {
         console.log("queryOrderWaitTime， 达到最大重试次数");
         return null;

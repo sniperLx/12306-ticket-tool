@@ -95,13 +95,13 @@ $(document).ready(() => {
 
         await submitTask();
 
-        console.log("submit task success", taskParams);
+        console.log("submit task success: ", JSON.stringify(taskParams));
     });
 })
 
-let submitTask = async (retryCnt = 3, retryInterval = 3) => {
+let submitTask = async (retryCnt = 1, retryInterval = 3) => {
     if (retryCnt <= 0) {
-        return false;
+        return;
     }
     //查询余票接口，只在下单前一分钟调一次获取车次相关的参数，后续不再调用，避免影响下单效率
     await initTrainInfo();
@@ -113,14 +113,14 @@ let submitTask = async (retryCnt = 3, retryInterval = 3) => {
     if ($("#query-ticket-cnt-task").is(':checked')) {
         let ok = queryOrBuyTicket(false).then(() => console.log("[submitTask], query ticket task submitted"));
         if (ok) {
-            return true;
+            return;
         }
     }
 
     if ($("#query-ticket-and-buy-task").is(':checked')) {
         let ok = queryOrBuyTicket(true).then(() => console.log("[submitTask], buy ticket task submitted"));
         if (ok) {
-            return true;
+            return;
         }
     }
 
@@ -134,7 +134,7 @@ let submitTask = async (retryCnt = 3, retryInterval = 3) => {
  * @param retryInterval 重试时间间隔 s
  * @returns {Promise<boolean>}
  */
-let queryOrBuyTicket = async (buy = false, retryCnt = 5, retryInterval = 3) => {
+let queryOrBuyTicket = async (buy = false, retryCnt = 3, retryInterval = 3) => {
     if (retryCnt <= 0) {
         //需要下单还执行到这里, 说明下单失败, 返回false; 否则只是单纯查余票, 返回true
         return !buy;
@@ -162,19 +162,19 @@ let queryOrBuyTicket = async (buy = false, retryCnt = 5, retryInterval = 3) => {
 
     if (ret["status"] === true) {
         console.log("[queryTicket], getQueueCount: ", ret["data"]);
-        let queueCnt = ret["count"];
-        let ticketCnt = ret["ticket"].split(",")[0];
+        let queueCnt = parseInt(ret["data"]["count"], 10);
+        let ticketCnt = parseInt(ret["data"]["ticket"].split(",")[0], 10);
         if (buy && queueCnt <= ticketCnt) {
             let ok = await buyTicket();
             if (ok) {
-                return false;
+                return true;
             }
         }
     } else {
         console.log("[queryTicket], getQueueCount failed: ", ret["data"]);
     }
 
-    setTimeout(queryOrBuyTicket, retryInterval * 1000, retryCnt - 1, retryInterval);
+    setTimeout(queryOrBuyTicket, retryInterval * 1000, buy, retryCnt - 1, retryInterval);
 }
 
 /**
@@ -185,10 +185,10 @@ let queryOrBuyTicket = async (buy = false, retryCnt = 5, retryInterval = 3) => {
  */
 let buyTicket = async (retryCnt = 3, retryInterval = 3) => {
     if (retryCnt <= 0) {
-        alert(`抱歉! 下单尝试${retryCnt}次失败, 请重新提交`);
+        alert(`抱歉! 下单尝试3次失败, 请重新提交`);
         return false;
     }
-    console.log("submit order: trying #s", retryCnt);
+    console.log("submit order: trying #%s", retryCnt);
     if (!isInfoReadyInCache("ticketOrderInfo", "passengerInfo")) {
         console.log("[buyTicket] params are not ready")
         return false;
@@ -259,10 +259,10 @@ async function initPassengerStrInfo() {
     let passengerName = taskRelatedInfoCache["task"]["passenger"];
 
     let seatType = taskRelatedInfoCache["task"]["seatType"];
-    seatType = isEmpty(seatType) ? "3" : seatType;
+    seatType = isEmpty(seatType) ? "1" : seatType; //默认硬座
 
     let ticketType = taskRelatedInfoCache["task"]["ticketType"];
-    ticketType = isEmpty(ticketType) ? "1" : ticketType;
+    ticketType = isEmpty(ticketType) ? "1" : ticketType; //默认成人票
 
     let allNormalPassengersInfoArr = await getPassengersInfo(repeatSubmitToken);
     let passengerInfo;
@@ -275,8 +275,8 @@ async function initPassengerStrInfo() {
     let passengerIdNo = passengerInfo["passenger_id_no"];
     let mobileNo = passengerInfo["mobile_no"] == null ? "" : passengerInfo["mobile_no"];
     let allEncStr = passengerInfo["allEncStr"];
-    //passengerTicketStr: 3,0,1,王建会,1,5129***********921,134****0679,N,ac1b75b....a55590b265d68239be9bbcc58
-    //oldPassengerStr: 王建会,1,5129***********921,1_
+    //passengerTicketStr: 3,0,1,xx,1,5119***********911,124****0689,N,ac1b75b....a55590b265d68239be9bbcc58
+    //oldPassengerStr: xx,1,5119***********911,1_
     let passengerTicketStr = `${seatType},0,${ticketType},${passengerName},1,${passengerIdNo},${mobileNo},N,${allEncStr}`;
     let oldPassengerStr = `${passengerName},1,${passengerIdNo},1_`;
 
@@ -309,7 +309,8 @@ let initTrainInfo = async () => {
     let resultArr = trainTicketsRetMap["result"];
 
     for (let i = 0; i < resultArr.length; i++) {
-        //"secretStr-xxkey|预订|5e0000D65660|D656|NGH|CUW|HGH|CUW|08:25|20:32|12:07|Y|zIb8mX2PNvZv65v1crFsdHTJD77ySZn%2FQdOVw%2FW3DSOppnWx|20200929|3|H2|04|23|1|0|||||||无||||14|有|||O0M0W0|OMO|0|0||O055900014M089500021O055903000||||||1|0"
+        //"secretStr-xxkey|预订|5e0000D65660|D656|NGH|CUW|HGH|CUW|08:25|20:32|12:07|Y|zIb8mX2PNvZv65v1crFsdHTJD77ySZn%2FQdOVw%2FW3DSOppnWx
+        // |20200929|3|H2|04|23|1|0|||||||无||||14|有|||O0M0W0|OMO|0|0||O055900014M089500021O055903000||||||1|0"
         let oneTrainInfoArr = resultArr[i].split("|");
         let secretStr = oneTrainInfoArr[0]; //每次查询车票，同一班车的这个值都会变化，停运车次该字段为空
         let trainStatus = oneTrainInfoArr[1]; //预定，列车停运
@@ -334,5 +335,5 @@ let initTrainInfo = async () => {
 }
 
 function isEmpty(obj) {
-    return obj === 'undefined' || obj === null || obj === "" || jQuery.isEmptyObject(obj);
+    return obj === 'undefined' || obj === null || obj === "" || Object.keys(obj).length === 0;
 }
