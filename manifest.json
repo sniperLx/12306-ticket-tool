@@ -1,0 +1,39 @@
+{
+	"manifest_version": 2,
+	"name": "12306 ticket tool",
+	"version": "1.0.0",
+	"description": "__MSG_pluginDesc__",
+	"icons":
+	{
+		"16": "img/12306.png",
+		"48": "img/12306.png",
+		"128": "img/12306.png"
+	},
+	"background":
+	{
+		"page": "main.html"
+	},
+	"browser_action":
+	{
+		"default_icon": "img/12306.png",
+		"default_title": "这是一个12306购票辅助插件",
+		"default_popup": "popup.html"
+	},
+	"permissions":
+	[
+		"contextMenus",
+		"tabs",
+		"notifications",
+		"webRequest",
+		"webRequestBlocking",
+		"storage",
+		"http://*/*",
+		"https://*/*"
+	],
+	"homepage_url": "https://www.bing.com",
+	"chrome_url_overrides":
+	{
+		"newtab": "newtab.html"
+	},
+	"default_locale": "zh_CN"
+}
