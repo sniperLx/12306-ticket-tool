@@ -34,8 +34,28 @@
 			</small>
 			<small  class="form-text text-muted">例子: 张三/K115/2020-09-11/杭州南/重庆北/软卧/Y/11:15</small>
 		</div>
+
+		<div class="form-check"  >
+			<input type="checkbox" class="form-check-input" id="keepalive-task" checked ='checked' disabled>
+			<label class="form-check-label" for="keepalive-task">保持登陆状态 (强制开启，否则无法长时间刷票)</label>
+		</div>
+
+		<div>
+			<div class="form-check">
+				<input class="form-check-input" type="radio" name="query-ticket" id="query-ticket-cnt-task" value="option1">
+				<label class="form-check-label" for="query-ticket-cnt-task">
+					查询余票
+				</label>
+			</div>
+			<div class="form-check">
+				<input class="form-check-input" type="radio" name="buy-ticket" id="query-ticket-and-buy-task" value="option2">
+				<label class="form-check-label" for="query-ticket-and-buy-task">
+					查询并下单抢票
+				</label>
+			</div>
+		</div>
+
 		<button  id="submit-task" type="submit" class="btn btn-primary">提交任务</button>
-		<button  id="keepalive-task" type="submit" class="btn btn-primary">启动登陆保活</button>
 	</div>
 </body>
 </html>

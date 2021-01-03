@@ -26,8 +26,8 @@ let queryMyOrderNotCompleted = async () => {
                 return value.text();
             }
         } else {
-            console.log("queryMyOrderNotCompleted: failed to query");
-            return
+            console.log("queryMyOrderNotCompleted: failed to query: ", value.error());
+            return {"status":false, "messages": "call api failed"}
         }
     });
 
@@ -42,11 +42,26 @@ let queryMyOrderNotCompleted = async () => {
 
 /**
  * 查询单程票信息
- * @returns Promise<{}>
- * map: {"repeatSubmitToken": string, "leftTicketStr": string,
- * "purposeCodes": string, "trainLocation": string, "keyCheckIsChange": string}
+ * @returns {Promise<void>}
  */
-let getDcTicketInfoForPassenger = async () => {
+let initDcTicketInfoForPassenger = async () => {
+    if (taskRelatedInfoCache["ticketOrderInfo"]["isOk"]) {
+        console.log("[initDcTicketInfoForPassenger] ticketOrderInfo are already ready, don't query again")
+        return;
+    }
+
+    if (!isInfoReadyInCache("trainInfo", "task")) {
+        console.log("[initDcTicketInfoForPassenger] params are not ready")
+        return;
+    }
+
+    let isOk = await submitOrderRequest(taskRelatedInfoCache["trainInfo"]["secretStr"], taskRelatedInfoCache["task"]["trainDate"],
+        taskRelatedInfoCache["task"]["trainDate"], taskRelatedInfoCache["task"]["fromStationName"],
+        taskRelatedInfoCache["task"]["toStationName"]);
+    if (!isOk) {
+        return;
+    }
+
     let resp = await fetch("https://kyfw.12306.cn/otn/confirmPassenger/initDc", {
         "credentials": "include",
         "headers": {
@@ -64,11 +79,12 @@ let getDcTicketInfoForPassenger = async () => {
         if (value.ok && value.redirected === false) {
             return value.text()
         } else {
-            console.log("call /otn/confirmPassenger/initDc.html failed: ", value.error())
-            console.error("call /otn/confirmPassenger/initDc.html failed")
+            console.log("[initDcTicketInfoForPassenger], call /otn/confirmPassenger/initDc.html failed: ", value.error());
+            alert("initDc接口调用失败");
+            return {"status": false, "messages": "call api failed"}
         }
     });
-    //console.log(resp)
+
     let startPos = resp.indexOf("globalRepeatSubmitToken");
     let endPos = startPos;
     for (let i = startPos; i < startPos + 100; i++) {
@@ -80,12 +96,13 @@ let getDcTicketInfoForPassenger = async () => {
     let tokenLine = resp.substring(startPos, endPos); // endPos will not be included
     let token = tokenLine.split("=")[1]
         .replace(/'/g, "").trim();
-    console.log("token=" + token);
+    console.log("[initDcTicketInfoForPassenger], token=" + token);
 
     startPos = resp.indexOf("ticketInfoForPassengerForm");
     if (startPos === -1) {
-        alert("initDc api error, cannot find ticketInfoForPassengerForm in response");
-        return {};
+        console.log("[initDcTicketInfoForPassenger], initDc返回内容错误, cannot find ticketInfoForPassengerForm in response");
+        alert("initDc返回内容错误");
+        return;
     }
     endPos = startPos;
     for (let i = startPos; i < startPos + 10000; i++) {
@@ -95,21 +112,18 @@ let getDcTicketInfoForPassenger = async () => {
         }
     }
     let ticketInfoForPassengerFormLine = resp.substring(startPos, endPos);
-    let ticketInfoForPassengerFormMap = JSON.parse(ticketInfoForPassengerFormLine.split("=")[1]
-        .replace(/'/g, "\""));
-    console.info(ticketInfoForPassengerFormMap)
+    //格式参考passengerInfo_js.js中内容
+    let ticketInfoForPassengerFormMap = JSON.parse(
+        ticketInfoForPassengerFormLine.split("=")[1].replace(/'/g, "\""));
 
-    let ticketInfoForPassenger = {
-        "keyCheckIsChange": ticketInfoForPassengerFormMap["key_check_isChange"],
-        "leftTicketStr": ticketInfoForPassengerFormMap["leftTicketStr"],
-        "trainLocation": ticketInfoForPassengerFormMap["train_location"],
-        "purposeCodes": ticketInfoForPassengerFormMap["queryLeftTicketRequestDTO"]["purpose_codes"],
-        "repeatSubmitToken": token
-    }
+    taskRelatedInfoCache["ticketOrderInfo"]["keyCheckIsChange"] = ticketInfoForPassengerFormMap["key_check_isChange"];
+    taskRelatedInfoCache["ticketOrderInfo"]["leftTicketStr"] = ticketInfoForPassengerFormMap["leftTicketStr"];
+    taskRelatedInfoCache["ticketOrderInfo"]["trainLocation"] = ticketInfoForPassengerFormMap["train_location"];
+    taskRelatedInfoCache["ticketOrderInfo"]["purposeCodes"] = ticketInfoForPassengerFormMap["queryLeftTicketRequestDTO"]["purpose_codes"];
+    taskRelatedInfoCache["ticketOrderInfo"]["repeatSubmitToken"] = token;
+    taskRelatedInfoCache["ticketOrderInfo"]["isOk"] = true;
 
-    console.log("ticketInfoForPassenger: ", ticketInfoForPassenger)
-
-    return ticketInfoForPassenger;
+    console.log("[initDcTicketInfoForPassenger],  taskRelatedInfoCache: ", taskRelatedInfoCache)
 }
 
 /**
@@ -156,7 +170,7 @@ let queryLeftTicket = async (trainDate, fromStation, toStation, retryCnt = 3, re
             return value.json();
         } else {
             console.error("query left ticket failed: " + value.url);
-            return {"status": false};
+            return {"status": false, "messages": "call api failed"}
         }
     });
 
@@ -180,7 +194,7 @@ let queryLeftTicket = async (trainDate, fromStation, toStation, retryCnt = 3, re
  * @param toStationName 重庆  目的站名
  * @param tourFlag dc - 单程， wc - 往返
  * @param purposeCodes ADULT - 成人， 0X00 - 学生
- * @returns {Promise<Response>}
+ * @returns {Promise<boolean>}
  * {"validateMessagesShowId":"_validatorMessage","status":true,
  * "httpstatus":200,"data":"N","messages":[],"validateMessages":{}}
  */
@@ -189,9 +203,9 @@ let submitOrderRequest = async (secretStr, trainDate, backTrainDate, fromStation
     let body = `secretStr=${secretStr}&train_date=${trainDate}&back_train_date=${backTrainDate}&` +
         `tour_flag=${tourFlag}&purpose_codes=${purposeCodes}&query_from_station_name=${fromStationName}` +
         `&query_to_station_name=${toStationName}&undefined`;
-    console.log("submitOrderRequest body: ", body)
+    console.log("[submitOrderRequest] body: ", body)
 
-    return await fetch("https://kyfw.12306.cn/otn/leftTicket/submitOrderRequest", {
+    let ret = await fetch("https://kyfw.12306.cn/otn/leftTicket/submitOrderRequest", {
         "credentials": "include",
         "headers": {
             "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:80.0) Gecko/20100101 Firefox/80.0",
@@ -206,12 +220,24 @@ let submitOrderRequest = async (secretStr, trainDate, backTrainDate, fromStation
         "mode": "cors"
     }).then(value => {
         if (value.ok) {
-            return value.json();
+            if (value.redirected) {
+                return value.url;
+            } else {
+                return value.json();
+            }
         } else {
-            console.log("submit order failed: " + value.error());
-            console.error("submit order failed");
+            console.log("[submitOrderRequest] api failed: " + value.error());
+            console.error("[submitOrderRequest] api failed");
+            return {"status": false, "messages": "call api failed"}
         }
     });
+
+    if (ret["status"] === true) {
+        return true;
+    } else {
+        console.log("[submitOrderRequest] failed: ", ret)
+        return false;
+    }
 }
 
 /**
@@ -256,10 +282,11 @@ let getPassengersInfo = async (repeatSubmitToken) => {
         } else {
             console.log("get passenger failed: " + value.error());
             console.error("get passenger failed");
+            return {"status": false, "messages": "call api failed"}
         }
     });
 
-    if (ret["status"] === true && ret["messages"].length === 0) {
+    if (ret["status"] === true) {
         return ret["data"]["normal_passengers"];
     } else {
         console.error("get normal passengers list failed: " + JSON.stringify(ret["messages"]));
@@ -270,26 +297,34 @@ let getPassengersInfo = async (repeatSubmitToken) => {
  * 前面排队人数
  * @param trainDate 2021-01-11 transfer to (Tue Sep 29 2020 00:00:00 GMT+0800 (中国标准时间))
  * @param trainNo 56000K115200  班次id
- * @param stationTrainCode K1152 班次
+ * @param trainCode K1152 班次
  * @param seatType 1
- * @param fromStation HZH
- * @param toStation CXW
+ * @param fromStationNo HZH
+ * @param toStationNo CXW
  * @param leftTicket bP2rrfeOWXeRkF%2Fh%2FjQr2ouIfDueVsIbjwrIXdDXDnpdKVziqYwp20JyFQ0%3D
  * @param purposeCodes 00
  * @param trainLocation H6
  * @param repeatSubmitToken e5c94ff235354551d16ecee352f924ad
- * @returns {Promise<void>} {"validateMessagesShowId":"_validatorMessage","status":true,"httpstatus":200,
- * "data":{"count":"7","ticket":"493,0","op_2":"false","countT":"0","op_1":"true"},"messages":[],"validateMessages":{}}
-
+ * @returns {Promise<{}>}
+ * {"status": true, "data": {leftTicketInfo}} 或者 {"status": false, "data": [messages]}
+ *
+ * api成功：
+ * {"validateMessagesShowId":"_validatorMessage","status":true,"httpstatus":200,
+ * "data":{"count":"7", //排队人数
+ * "ticket":"493,0",   //硬座：“有座票数，无座票数”; 卧铺： “剩余票数”
+ * "op_2":"false","countT":"0","op_1":"true"},"messages":[],"validateMessages":{}}
+ * api失败：
+ * {"validateMessagesShowId":"_validatorMessage","status":false,"httpstatus":200,"messages":["系统繁忙，请稍后重试！"],"validateMessages":{}}
  */
-let getQueueCount = async (repeatSubmitToken, trainDate, trainNo, stationTrainCode, seatType, fromStation,
-                           toStation, leftTicket, purposeCodes, trainLocation) => {
-    let body = `train_date=${encodeURIComponent(new Date(trainDate).toString())}&train_no=${trainNo}&stationTrainCode=${stationTrainCode}&seatType=${seatType}` +
-        `&fromStationTelecode=${fromStation}&toStationTelecode=${toStation}&leftTicket=${leftTicket}` +
+let getQueueCount = async (repeatSubmitToken, trainDate, trainNo, trainCode, seatType, fromStationNo,
+                           toStationNo, leftTicket, purposeCodes, trainLocation) => {
+    let body = `train_date=${encodeURIComponent(new Date(trainDate).toString())}&train_no=${trainNo}&stationTrainCode=${trainCode}&seatType=${seatType}` +
+        `&fromStationTelecode=${fromStationNo}&toStationTelecode=${toStationNo}&leftTicket=${leftTicket}` +
         `&purpose_codes=${purposeCodes}&train_location=${trainLocation}&_json_att=&REPEAT_SUBMIT_TOKEN=${repeatSubmitToken}`
-    console.log("getQueueCount body: ", body)
 
-    return await fetch("https://kyfw.12306.cn/otn/confirmPassenger/getQueueCount", {
+    console.log("[getQueueCount] body: ", body)
+
+    let ret = await fetch("https://kyfw.12306.cn/otn/confirmPassenger/getQueueCount", {
         "credentials": "include",
         "headers": {
             "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:80.0) Gecko/20100101 Firefox/80.0",
@@ -304,12 +339,23 @@ let getQueueCount = async (repeatSubmitToken, trainDate, trainNo, stationTrainCo
         "mode": "cors"
     }).then(value => {
         if (value.ok) {
-            return value.json();
+            if (value.redirected) {
+                return value.text();
+            } else {
+                return value.json();
+            }
         } else {
             console.log("get queue count for this train failed: " + value.error())
             console.error("get queue count for this train failed")
+            return {"status": false, "messages": "call api failed"}
         }
     });
+
+    if (ret["status"] === true) {
+        return {"status": true, "data": ret["data"]};
+    } else {
+        return {"status": false, "data": ret["messages"]};
+    }
 }
 
 /**
@@ -330,6 +376,8 @@ let checkOrderInfo = async (repeatSubmitToken, passengerTicketStr, oldPassengerS
         `&oldPassengerStr=${encodeURIComponent(oldPassengerStr)}&tour_flag=${tourFlag}&randCode=&whatsSelect=${whatsSelect}&sessionId=&sig=&scene=nc_login` +
         `&_json_att=&REPEAT_SUBMIT_TOKEN=${repeatSubmitToken}`
 
+    console.log("[checkOrderInfo], body: %s", body);
+
     let ret = await fetch("https://kyfw.12306.cn/otn/confirmPassenger/checkOrderInfo", {
         "credentials": "include",
         "headers": {
@@ -347,15 +395,16 @@ let checkOrderInfo = async (repeatSubmitToken, passengerTicketStr, oldPassengerS
         if (value.ok) {
             return value.json();
         } else {
-            console.log("checkOrderInfo for passenger %s failed: ", passengerTicketStr, value.error());
-            console.error("checkOrderInfo failed");
+            console.log("[checkOrderInfo] check info for passenger %s failed: ", passengerTicketStr, value.error());
+            console.error("[checkOrderInfo] failed");
+            return {"status": false, "messages": "call api failed"}
         }
     });
 
     if (ret["status"] === true) {
         return true;
     } else {
-        console.error("checkOrderInfo failed: " + JSON.stringify(ret["messages"]));
+        console.log("[checkOrderInfo] failed: " + JSON.stringify(ret["messages"]));
         return false;
     }
 }
@@ -381,7 +430,7 @@ let confirmSingleForQueue = async (repeatSubmitToken, passengerTicketStr, oldPas
                                    encryptedData = "", whatsSelect = "1", roomType = "00") => {
     /*
     {
-       'passengerTicketStr': '1,0,1,王建会,1,5129***********921,134****0679,N,ac1b75b8790305815e7205fad734f554643142d77df82bc0478cbf688f9fbe92da55590b265d68237d925ddd55517dba0aad4e1a0cc63    10593b84e4bc80f599ad0796f5baba974f5da04069be9bbcc58',
+       'passengerTicketStr': '1,0,1,王建会,1,5129***********921,134****0679,N,ac1b75b87900b....069be9bbcc58',
        'oldPassengerStr': '王建会,1,5129***********921,1_',
        'purpose_codes': '00',
        'key_check_isChange': 'D6373EF64F619F2AF445E2032619D92470    7D26DA40DDCBD8A14F7170',
@@ -426,10 +475,11 @@ let confirmSingleForQueue = async (repeatSubmitToken, passengerTicketStr, oldPas
         } else {
             console.log("confirmOrder for passenger %s failed: ", passengerTicketStr, value.error());
             console.error("confirmOrder failed");
+            return {"status": false, "messages": "call api failed"}
         }
     });
 
-    if (ret["status"] === true && ret["messages"].length === 0) {
+    if (ret["status"] === true) {
         return true;
     } else {
         console.error("checkOrderInfo failed: " + JSON.stringify(ret["messages"]));
@@ -487,6 +537,7 @@ let queryOrderWaitTime = async (repeatSubmitToken, retryCnt = 10, retryInterval 
         } else {
             console.log("queryOrderWaitTime failed: ", value.error());
             console.error("queryOrderWaitTime failed");
+            return {"status": false, "messages": "call api failed"}
         }
     });
 
@@ -495,10 +546,6 @@ let queryOrderWaitTime = async (repeatSubmitToken, retryCnt = 10, retryInterval 
     } else {
         await new Promise(() => setTimeout(queryOrderWaitTime, retryInterval, repeatSubmitToken, retryCnt - 1, retryInterval))
     }
-}
-
-async function waitAndRetry(func, timeout, ...arguments) {
-    await new Promise(() => setTimeout(func, timeout, ...arguments))
 }
 
 /**
