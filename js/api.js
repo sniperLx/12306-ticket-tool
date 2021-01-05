@@ -517,7 +517,7 @@ let confirmSingleForQueue = async (repeatSubmitToken, passengerTicketStr, oldPas
  */
 let queryOrderWaitTime = async (repeatSubmitToken, retryCnt = 5, retryInterval = 1000, tourFlag = "dc") => {
     if (retryCnt <= 0) {
-        console.log("queryOrderWaitTime， 达到最大重试次数");
+        console.log("[queryOrderWaitTime], 达到最大重试次数");
         return null;
     }
     let paramsUrl = `random=${new Date().getTime()}&tourFlag=${tourFlag}&_json_att=&REPEAT_SUBMIT_TOKEN=${repeatSubmitToken}`
@@ -548,6 +548,7 @@ let queryOrderWaitTime = async (repeatSubmitToken, retryCnt = 5, retryInterval =
     if (ret["status"] === true && !isEmpty(ret["data"]["orderId"])) {
         return ret["data"]["orderId"];
     } else {
+        console.log("[queryOrderWaitTime], err msg: ", JSON.stringify(ret["data"]["msg"]));
         await new Promise(() => setTimeout(queryOrderWaitTime, retryInterval, repeatSubmitToken, retryCnt - 1, retryInterval))
     }
 }

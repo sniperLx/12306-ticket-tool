@@ -23,39 +23,41 @@
 </head>
 <body>
 	<div class="container">
-		<form id="task">
+		<form id="task" target="iframe-for-no-refresh">
 <!--			put 21-25 into here can save input into cache-->
+			<div class="form-group">
+				<label for="ticket-task-info">抢票任务信息：</label>
+				<input type="text" class="form-control" id="ticket-task-info" aria-describedby="taskHelp" placeholder="输入抢票任务信息">
+				<small id="taskHelp" class="form-text text-muted">任务信息格式: 姓名/车次/出发日期/起点站/终点站/座位类型/成人票吗/抢票时间.
+					日期格式：2020-09-11, 抢票时间格式: 11:15, 成人票吗：Y/N
+				</small>
+				<small  class="form-text text-muted">例子: 张三/K115/2020-09-11/杭州南/重庆北/软卧/Y/11:15</small>
+			</div>
+
+			<div class="form-check"  >
+				<input type="checkbox" class="form-check-input" id="keepalive-task" checked ='checked' disabled>
+				<label class="form-check-label" for="keepalive-task">保持登陆状态 (强制开启，否则无法长时间刷票)</label>
+			</div>
+
+			<div>
+				<div class="form-check">
+					<input class="form-check-input" type="radio" name="query-or-buy-ticket" id="query-ticket-cnt-task" value="option1">
+					<label class="form-check-label" for="query-ticket-cnt-task">
+						查询余票
+					</label>
+				</div>
+				<div class="form-check">
+					<input class="form-check-input" type="radio" name="query-or-buy-ticket" id="query-ticket-and-buy-task" value="option2">
+					<label class="form-check-label" for="query-ticket-and-buy-task">
+						查询并下单抢票
+					</label>
+				</div>
+			</div>
+
+			<button  id="submit-task" type="submit" class="btn btn-primary">提交任务</button>
 		</form>
-		<div class="form-group">
-			<label for="ticket-task-info">抢票任务信息：</label>
-			<input type="text" class="form-control" id="ticket-task-info" aria-describedby="taskHelp" placeholder="输入抢票任务信息">
-			<small id="taskHelp" class="form-text text-muted">任务信息格式: 姓名/车次/出发日期/起点站/终点站/座位类型/成人票吗/抢票时间.
-				日期格式：2020-09-11, 抢票时间格式: 11:15, 成人票吗：Y/N
-			</small>
-			<small  class="form-text text-muted">例子: 张三/K115/2020-09-11/杭州南/重庆北/软卧/Y/11:15</small>
-		</div>
 
-		<div class="form-check"  >
-			<input type="checkbox" class="form-check-input" id="keepalive-task" checked ='checked' disabled>
-			<label class="form-check-label" for="keepalive-task">保持登陆状态 (强制开启，否则无法长时间刷票)</label>
-		</div>
-
-		<div>
-			<div class="form-check">
-				<input class="form-check-input" type="radio" name="query-ticket" id="query-ticket-cnt-task" value="option1">
-				<label class="form-check-label" for="query-ticket-cnt-task">
-					查询余票
-				</label>
-			</div>
-			<div class="form-check">
-				<input class="form-check-input" type="radio" name="buy-ticket" id="query-ticket-and-buy-task" value="option2">
-				<label class="form-check-label" for="query-ticket-and-buy-task">
-					查询并下单抢票
-				</label>
-			</div>
-		</div>
-
-		<button  id="submit-task" type="submit" class="btn btn-primary">提交任务</button>
+		<iframe id="iframe" name="iframe-for-no-refresh" style="display:none;"></iframe>
 	</div>
 </body>
 </html>

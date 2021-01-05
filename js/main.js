@@ -23,6 +23,9 @@ function getSeatTypeCode(seatType) {
     }
 }
 
+const ADULT = 1
+const STUDENT = 3
+
 let taskRelatedInfoCache = {
     "task": {
         "isOk": false,
@@ -80,7 +83,7 @@ $(document).ready(() => {
             "fromStationName": paramsArr[3],  //起点站名
             "toStationName": paramsArr[4],    //终点站名
             "seatType": getSeatTypeCode(paramsArr[5]),  //座位类型
-            "ticketType": paramsArr[6] === "Y" ? 1 : 3, //票类型，成人票或者学生票
+            "ticketType": paramsArr[6] === "Y" ? ADULT : STUDENT, //票类型，成人票或者学生票
             "startOrderTime": paramsArr[7], //开始下单抢票时间
             "fromStationNo": "",
             "toStationNo": "",
@@ -262,7 +265,7 @@ async function initPassengerStrInfo() {
     seatType = isEmpty(seatType) ? "1" : seatType; //默认硬座
 
     let ticketType = taskRelatedInfoCache["task"]["ticketType"];
-    ticketType = isEmpty(ticketType) ? "1" : ticketType; //默认成人票
+    ticketType = isEmpty(ticketType) ? ADULT : ticketType; //默认成人票
 
     let allNormalPassengersInfoArr = await getPassengersInfo(repeatSubmitToken);
     let passengerInfo;
@@ -335,5 +338,15 @@ let initTrainInfo = async () => {
 }
 
 function isEmpty(obj) {
-    return obj === 'undefined' || obj === null || obj === "" || Object.keys(obj).length === 0;
+    switch (typeof obj) {
+        case "number":
+        case "boolean":
+        case "symbol":
+        case "bigint":
+        case "function":
+            return false;
+        default:
+            //string, undefined, null, object
+            return obj === 'undefined' || obj === null || obj === "" || Object.keys(obj).length === 0;
+    }
 }
