@@ -27,5 +27,6 @@ function getStationNo(stationName) {
         }
     }
     alert("cannot find this station: " + stationName);
-    console.error("cannot find this station: " + stationName);
+    console.log("cannot find this station: " + stationName);
+    return "";
 }
