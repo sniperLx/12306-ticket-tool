@@ -1,5 +1,3 @@
-//谁 买 什么时间  哪一班车 哪种位置
-
 $(document).ready(() => {
     if ($('#keepalive-task').is(':checked')) {
         //console.log("开始心跳保活");

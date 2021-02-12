@@ -37,3 +37,21 @@ function getSeatTypeCode(seatType) {
 
 const ADULT = 1
 const STUDENT = 3
+
+$(document).ready(() => {
+    //var old = console.log;
+    let logger = $('#log');
+    console.log = function () {
+        let msg = new Date().toISOString() + " ";
+        for (let i = 0; i < arguments.length; i++) {
+            if (typeof arguments[i] == 'object') {
+                msg += (JSON && JSON.stringify ? JSON.stringify(arguments[i], undefined, 2) : arguments[i]);
+            } else {
+                msg += arguments[i];
+            }
+        }
+        msg += '\r\n';
+        logger.val(logger.val() + msg)
+        logger.scrollTop(logger[0].scrollHeight)
+    }
+})

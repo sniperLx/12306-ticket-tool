@@ -318,21 +318,16 @@ let API = {
             if (value.ok) {
                 return value.json();
             } else {
-                console.log("[checkOrderInfo] check info for passenger %s failed: ", passengerTicketStr, value.error());
-                console.error("[checkOrderInfo] failed");
-                return {"status": false, "messages": "call api failed"}
+                throw new Error("[checkOrderInfo] failed");
             }
         });
 
         if (ret["status"] === true) {
             if (ret["data"]["submitStatus"] === false) {
-                console.log("[checkOrderInfo] failed: " + JSON.stringify(ret["data"]["errMsg"]));
-                return false;
+                throw new Error(JSON.stringify(ret["data"]["errMsg"]));
             }
-            return true;
         } else {
-            console.log("[checkOrderInfo] failed: " + JSON.stringify(ret["messages"]));
-            return false;
+            throw new Error(JSON.stringify(ret["messages"]));
         }
     },
 
@@ -379,7 +374,7 @@ let API = {
             //`is_jy=${isJy}&encryptedData=${window.json_ua.toString()}`
             `&whatsSelect=${whatsSelect}&roomType=${roomType}&dwAll=N&_json_att=` +
             `&REPEAT_SUBMIT_TOKEN=${repeatSubmitToken}`;
-        console.log("confirmOrder body: " + body);
+        console.log("confirmOrder body: ", body);
 
         //{"validateMessagesShowId":"_validatorMessage","status":true,"httpstatus":200,
         // "data":{"submitStatus":true},"messages":[],"validateMessages":{}}
@@ -408,8 +403,6 @@ let API = {
     /**
      * 查询下单是否成功
      * @param repeatSubmitToken
-     * @param retryCnt 查询重试次数
-     * @param retryInterval 重试间隔，默认3s
      * @param tourFlag
      * @returns {Promise<orderId>}
      * {
