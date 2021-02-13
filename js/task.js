@@ -52,8 +52,8 @@ class Task {
         //查询余票接口，只在下单前一分钟调一次获取车次相关的参数，后续不再调用，避免影响下单效率
         if ($("#query-ticket-cnt-task").is(':checked')) {
             this.queryTicket().then((ret) => {
-                console.log("查询结果： " + ret);
-                alert("查询结果： " + ret)
+                console.log("[submitTask] 本班次余票信息： " + JSON.stringify(ret));
+                alert("本班次余票信息： " + ret)
             });
         } else if ($("#query-ticket-and-buy-task").is(':checked')) {
             this.queryTicket()
@@ -66,6 +66,9 @@ class Task {
                     console.log("[submitTask] ", err.stack);
                     alert(err.message)
                 });
+        } else {
+            console.log("请选择查询余票或者下单抢票");
+            alert("请选择一个选项： 查询余票； 下单抢票");
         }
     }
 
@@ -73,10 +76,9 @@ class Task {
      * @returns {Promise<>}
      */
     queryTicketAndQueueLen() {
-        console.log("[queryTicketAndQueueLen]....")
         return new Promise((resolve, reject) => {
             if (!this.isInfoReadyInCache("ticketOrderInfo", "passengerInfo", "task")) {
-                reject(new Error("[queryTicket] params not ready in cache"));
+                reject(new Error("[queryTicketAndQueueLen] params not ready in cache"));
                 return;
             }
             resolve();
@@ -92,7 +94,7 @@ class Task {
                 this.taskRelatedInfoCache["ticketOrderInfo"]["trainLocation"])
         }).then(ret => {
             if (ret["status"] === true) {
-                console.log("[queryTicket], getQueueCount: ", ret["data"]);
+                console.log("[queryTicketAndQueueLen], getQueueCount: ", ret["data"]);
                 let queueCnt = parseInt(ret["data"]["count"], 10);
                 let ticketCnt = parseInt(ret["data"]["ticket"].split(",")[0], 10);
                 if (queueCnt > ticketCnt) {
@@ -111,7 +113,7 @@ class Task {
      * @param retryInterval 默认隔3s重试一次
      * @returns {Promise<>}
      */
-    buyTicket(retryCnt = 3, retryInterval = 3) {
+    buyTicket(retryCnt = 5, retryInterval = 3) {
         return new Promise((resolve, reject) => {
             if (!this.isInfoReadyInCache("ticketOrderInfo", "passengerInfo")) {
                 console.log("[buyTicket] params are not ready")
@@ -189,7 +191,7 @@ class Task {
      */
     async queryTicket() {
         if (!this.isInfoReadyInCache("task")) {
-            console.log("[initTrainInfo] params are not ready")
+            console.log("[queryTicket] params are not ready")
             throw new Error("任务未被初始化");
         }
 
@@ -199,11 +201,9 @@ class Task {
             this.taskRelatedInfoCache["task"]["toStationNo"]);
 
         if (isEmpty(trainTicketsRetMap)) {
-            console.log("[initTrainInfo] queryLeftTicket failed, plz confirm it at 12306");
+            console.log("[queryTicket] queryLeftTicket failed, plz confirm it at 12306");
             throw new Error("连续多次查询余票失败, 请到12306官网确认");
         }
-
-        //console.log("[initTrainInfo] queryLeftTicket: ", trainTicketsRetMap)
 
         let resultArr = trainTicketsRetMap["result"];
 
@@ -218,7 +218,7 @@ class Task {
 
             if (trainCode === this.taskRelatedInfoCache["task"]["trainCode"]) {
                 if (isEmpty(secretStr)) {
-                    console.log("[initTrainInfo] %s, empty secretStr", `${trainCode} 状态异常： ${trainStatus}`);
+                    console.log("[queryTicket] %s, empty secretStr", `${trainCode} 状态异常： ${trainStatus}`);
                     throw new Error(`${trainCode} 状态异常： ${trainStatus}, 请选择其他车次`);
                 }
 
@@ -227,19 +227,23 @@ class Task {
                     let val = oneTrainInfoArr[j];
                     if (val !== "" && val !== "无") {
                         hasTicketLeft = true;
-                        console.log("余票： " + oneTrainInfoArr);
+                        oneTrainInfoArr[0] = "xxx";
+                        oneTrainInfoArr[12] = "xxx";
+                        console.log("[queryTicket] 返回值： " + JSON.stringify(oneTrainInfoArr));
                         break;
                     }
                 }
 
+                let leftTicket = getTicketCount(oneTrainInfoArr);
+
                 this.taskRelatedInfoCache["trainInfo"]["secretStr"] = secretStr;
                 this.taskRelatedInfoCache["trainInfo"]["trainNo"] = trainNo;
                 this.taskRelatedInfoCache["trainInfo"]["isOk"] = true;
-                return hasTicketLeft ? "还有票" : new Error("这列车没票了");
+                return hasTicketLeft ? leftTicket : new Error("这班车没票了");
             }
         }
 
-        console.log("[initTrainInfo] cannot find train： %s, plz confirm it", this.taskRelatedInfoCache["task"]["trainCode"]);
+        console.log("[queryTicket] cannot find train： %s, plz confirm it", this.taskRelatedInfoCache["task"]["trainCode"]);
         throw new Error(`未找到班次： ${this.taskRelatedInfoCache["task"]["trainCode"]}, 请登陆12306确认`)
     }
 

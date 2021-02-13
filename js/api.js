@@ -30,14 +30,13 @@ let API = {
         };
     },
 
-    keepActive:  async () => {
-        let ok = await API.queryMyOrderNotCompleted();
-        if (ok) {
-            setTimeout(keepActive, 20 * 1000);
-        } else {
-            console.log("[keepActive], queryMyOrderNotCompleted. 检测到已经退出了12306, 请重新登陆后继续");
-            alert("检测到已经退出了12306, 请重新登陆后继续!");
-        }
+    keepActive: async () => {
+        await API.queryMyOrderNotCompleted()
+            .then(() => setTimeout(this.keepActive, 20 * 1000))
+            .catch(err => {
+            console.log("[keepActive] 异常： " + err);
+            alert(err);
+        });
     },
 
     /**
@@ -55,24 +54,19 @@ let API = {
             "mode": "cors"
         }).then(value => {
             if (value.ok) {
-                if (value.redirected === false) {
-                    return value.json();
+                if (value.redirected) {
+                    throw new Error("请保持登录12306，似乎已退出");
                 } else {
-                    return value.text();
+                    return value.json();
                 }
             } else {
-                console.log("queryMyOrderNotCompleted: failed to query: ", value.error());
-                return {"status": false, "messages": "call api failed"}
+                console.log("[queryMyOrderNotCompleted] failed to query");
+                throw new Error("查询未支付订单API失败")
             }
         });
 
         //{"validateMessagesShowId":"_validatorMessage","status":true,"httpstatus":200,"messages":[],"validateMessages":{}}
-        if (ret["status"] === true) {
-            return true;
-        } else {
-            console.log("queryMyOrderNotCompleted: failed");
-            return false;
-        }
+        return ret["status"] === true;
     },
 
     initDc: () => {
@@ -87,7 +81,7 @@ let API = {
             if (value.ok && value.redirected === false) {
                 return value.text()
             } else {
-                console.log("[initDcTicketInfoForPassenger], call /otn/confirmPassenger/initDc.html failed: ", value.error());
+                console.log("[initDcTicketInfoForPassenger], call /otn/confirmPassenger/initDc.html failed");
                 throw new Error("initDc接口调用失败");
             }
         });
@@ -107,7 +101,7 @@ let API = {
     queryLeftTicket: async (trainDate, fromStation, toStation, purposeCodes = "ADULT") => {
         let params = `leftTicketDTO.train_date=${trainDate}&leftTicketDTO.from_station=${fromStation}` +
             `&leftTicketDTO.to_station=${toStation}&purpose_codes=${purposeCodes}`;
-        console.log(params)
+        console.log("[queryLeftTicket] params: ", params)
         // {"httpstatus": 200, "data": {}, "messages":"","status":true}}}
         let ret = await fetch(`https://${API.url}/otn/leftTicket/queryZ?${params}`, {
             "credentials": "include",
@@ -118,12 +112,10 @@ let API = {
             "method": "GET",
             "mode": "cors"
         }).then(value => {
-            console.log(value)
             if (value.ok && value.redirected === false) {
                 return value.json();
             } else {
-                console.error("query left ticket failed: " + value.url);
-                return {"status": false, "messages": "call api failed"}
+                throw new Error("call api failed")
             }
         });
 
@@ -164,14 +156,13 @@ let API = {
         }).then(value => {
             if (value.ok) {
                 if (value.redirected) {
-                    return value.url;
+                    throw new Error("请保持登录12306，似乎已退出");
                 } else {
                     return value.json();
                 }
             } else {
-                console.log("[submitOrderRequest] api failed: " + value.error());
-                console.error("[submitOrderRequest] api failed");
-                return {"status": false, "messages": "call api failed"}
+                console.log("[submitOrderRequest] api failed");
+                throw new Error("提交订单请求API失败");
             }
         });
 
@@ -214,19 +205,21 @@ let API = {
             "mode": "cors"
         }).then(value => {
             if (value.ok) {
-                return value.json();
+                if (value.redirected) {
+                    throw new Error("请保持登录12306，似乎已退出");
+                } else {
+                    return value.json();
+                }
             } else {
-                console.log("get passenger failed: " + value.error());
-                console.error("get passenger failed");
-                return {"status": false, "messages": "call api failed"}
+                console.log("[getPassengersInfo] get passenger api failed");
+                throw new Error("查询乘客信息API失败");
             }
         });
 
         if (ret["status"] === true) {
             return ret["data"]["normal_passengers"];
         } else {
-            console.error("get normal passengers list failed: " + JSON.stringify(ret["messages"]));
-            return [];
+           throw new Error("查询乘客信息失败，请检查登录状态")
         }
     },
     /**
@@ -258,7 +251,7 @@ let API = {
             `&fromStationTelecode=${fromStationNo}&toStationTelecode=${toStationNo}&leftTicket=${leftTicket}` +
             `&purpose_codes=${purposeCodes}&train_location=${trainLocation}&_json_att=&REPEAT_SUBMIT_TOKEN=${repeatSubmitToken}`
 
-        console.log("[getQueueCount] body: ", body)
+        console.log("[getQueueCount] body: " + JSON.stringify(body))
 
         return fetch(`https://${API.url}/otn/confirmPassenger/getQueueCount`, {
             "credentials": "include",
@@ -270,12 +263,12 @@ let API = {
         }).then(value => {
             if (value.ok) {
                 if (value.redirected) {
-                    throw new Error("api failed");
+                    throw new Error("请保持登录12306，似乎已退出");
                 } else {
                     return value.json();
                 }
             } else {
-                console.log("get queue count for this train failed")
+                console.log("[getQueueCount] get queue count for this train failed")
                 throw new Error("call api failed")
             }
         }).then(ret => {
@@ -316,9 +309,13 @@ let API = {
             "mode": "cors"
         }).then(value => {
             if (value.ok) {
-                return value.json();
+                if (value.redirected) {
+                    throw new Error("请保持登录12306，似乎已退出");
+                } else {
+                    return value.json();
+                }
             } else {
-                throw new Error("[checkOrderInfo] failed");
+                throw new Error("检查订单信息API失败");
             }
         });
 
@@ -374,7 +371,7 @@ let API = {
             //`is_jy=${isJy}&encryptedData=${window.json_ua.toString()}`
             `&whatsSelect=${whatsSelect}&roomType=${roomType}&dwAll=N&_json_att=` +
             `&REPEAT_SUBMIT_TOKEN=${repeatSubmitToken}`;
-        console.log("confirmOrder body: ", body);
+        console.log("[confirmSingleForQueue] body: " + JSON.stringify(body));
 
         //{"validateMessagesShowId":"_validatorMessage","status":true,"httpstatus":200,
         // "data":{"submitStatus":true},"messages":[],"validateMessages":{}}
@@ -387,9 +384,13 @@ let API = {
             "mode": "cors"
         }).then(value => {
             if (value.ok) {
-                return value.json();
+                if (value.redirected) {
+                    throw new Error("请保持登录12306，似乎已退出");
+                } else {
+                    return value.json();
+                }
             } else {
-                console.log("confirmOrder for passenger %s failed: ", passengerTicketStr, value.error());
+                console.log("[confirmSingleForQueue] call api failed")
                 throw new Error("确认订单API失败")
             }
         }).then(ret => {
@@ -434,17 +435,21 @@ let API = {
             "mode": "cors"
         }).then(value => {
             if (value.ok) {
-                return value.json();
+                if (value.redirected) {
+                    throw new Error("请保持登录12306，似乎已退出");
+                } else {
+                    return value.json();
+                }
             } else {
-                console.log("queryOrderWaitTime failed: ", value.error());
+                console.log("[queryOrderWaitTime] call api failed.");
                 throw new Error("查询订单API失败")
             }
         }).then(ret => {
-            console.log("[queryOrderWaitTime] %s", JSON.stringify(ret));
+            console.log("[queryOrderWaitTime] " + JSON.stringify(ret));
             if (ret["status"] === true && !isEmpty(ret["data"]["orderId"])) {
                 return ret["data"]["orderId"];
             } else {
-                throw new Error("下单失败");
+                throw new Error("查询订单失败，请到12306官网查看是否下单成功");
             }
         });
     },
@@ -468,8 +473,8 @@ let API = {
             if (value.ok) {
                 return value.json();
             } else {
-                console.log("resultOrderForDcQueue failed: ", value.error());
-                console.error("resultOrderForDcQueue failed");
+                console.log("resultOrderForDcQueue failed.");
+               throw new Error("resultOrderForDcQueue failed");
             }
         });
     },

@@ -1,16 +1,18 @@
 $(document).ready(() => {
+    //长时间保活会被12306强制剔出并禁止登录一段时间
     if ($('#keepalive-task').is(':checked')) {
         //console.log("开始心跳保活");
-        //keepActive().then(v => console.log("开始心跳保活"));
+        //this.keepActive().then(v => console.log("开始心跳保活"));
     }
 
     $("#submit-task").on('click', () => {
         //姓名/车次/出发日期/起点站/终点站/座位类型/是否成人/开始抢票时间
         let taskInfo = $("#ticket-task-info").val();
-        console.log(taskInfo);
+        console.log("任务参数： " + taskInfo);
         let paramsArr = taskInfo.split("/");
         if (paramsArr.length !== 8) {
-            alert("输入参数格式不对，请检查");
+            console.log("任务参数格式不对，请参考例子修正： 张三/K115/2020-09-11/杭州南/重庆北/软卧/Y/11:15");
+            alert("输入参数格式不对，请参考例子修正");
             return;
         }
 
@@ -42,10 +44,10 @@ $(document).ready(() => {
         taskParams["fromStationNo"] =  fromStation;
         taskParams["toStationNo"] = toStation;
 
+        console.log("任务参数： " + JSON.stringify(taskParams));
+
         let task = new Task(taskParams);
         //异步
         task.submitTask();
-
-        console.log("submit task success: ", JSON.stringify(taskParams));
     });
 })
